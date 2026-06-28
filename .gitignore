@@ -1,0 +1,36 @@
+# Build artefacts
+node_modules/
+dist/
+build/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+
+# Environments
+.env
+.env.local
+.env.*.local
+venv/
+env/
+.venv/
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# Secrets
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+serviceAccount*.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
