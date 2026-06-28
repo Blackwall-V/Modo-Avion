@@ -1,0 +1,66 @@
+# Render Blueprint — MODO AVIÓN
+# One-click deploy: Render Dashboard → New → Blueprint → connect this repo.
+#
+# Two services:
+#   1. modo-avion-backend  (Django + DRF, Python web service, free tier)
+#   2. modo-avion-frontend (Vite/React static site, free tier)
+#
+# Secrets marked `sync: false` are NOT injected from this file. You set them
+# in the Render Dashboard after the first deploy (or via the CLI).
+# DATABASE_URL → use a free Supabase / Neon Postgres (Render's free PG dies
+# after 90 days, so don't rely on it for this stack).
+# FIREBASE_CREDENTIALS_JSON → paste the full contents of your Firebase Admin
+# service-account JSON. Multiline is fine; Render preserves it.
+services:
+  - type: web
+    name: modo-avion-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn core.wsgi:application --bind 0.0.0.0:$PORT
+    preDeployCommand: python manage.py migrate --noinput
+    healthCheckPath: /api/health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: modo-avion-backend.onrender.com
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://modo-avion-frontend.onrender.com
+      - key: DATABASE_URL
+        sync: false
+      - key: FIREBASE_CREDENTIALS_JSON
+        sync: false
+
+  - type: static
+    name: modo-avion-frontend
+    rootDir: frontend
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://modo-avion-backend.onrender.com/api
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false
+    routes:
+      # SPA fallback: any unknown path → index.html (so React Router
+      # routes like /shop, /product/xxx don't 404 on hard refresh).
+      - type: rewrite
+        source: /*
+        destination: /index.html

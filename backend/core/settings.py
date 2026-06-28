@@ -3,6 +3,7 @@ Django settings for the MODO AVIÓN backend.
 Loads configuration from environment variables via python-decouple.
 """
 from pathlib import Path
+import dj_database_url
 from decouple import config, Csv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -58,7 +59,12 @@ TEMPLATES = [
 WSGI_APPLICATION = "core.wsgi.application"
 
 DATABASES = {
-    "default": {
+    "default": dj_database_url.config(
+        default=config("DATABASE_URL", default=""),
+        conn_max_age=600,
+    )
+    if config("DATABASE_URL", default="")
+    else {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": config("DB_NAME"),
         "USER": config("DB_USER"),
@@ -112,4 +118,15 @@ REST_FRAMEWORK = {
 # -------------------------------------------------------------------
 # Firebase Admin
 # -------------------------------------------------------------------
+# Two ways to provide credentials:
+#   - FIREBASE_CREDENTIALS_PATH  → path to a service-account JSON file
+#                                  (used in local dev where the file is
+#                                   gitignored on disk).
+#   - FIREBASE_CREDENTIALS_JSON  → raw contents of the JSON file as a
+#                                  single string. Use this on Render /
+#                                  any host where you can't drop a file
+#                                  on disk — just paste the JSON into an
+#                                  env var.
+# At least one (or GOOGLE_APPLICATION_CREDENTIALS) must be set in prod.
 FIREBASE_CREDENTIALS_PATH = config("FIREBASE_CREDENTIALS_PATH", default="")
+FIREBASE_CREDENTIALS_JSON = config("FIREBASE_CREDENTIALS_JSON", default="")

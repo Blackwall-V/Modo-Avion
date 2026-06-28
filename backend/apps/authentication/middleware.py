@@ -10,10 +10,14 @@ Two integration points:
    endpoints.
 
 Both rely on the ``firebase-admin`` SDK. The SDK is initialised lazily on
-first use from the credentials path defined in ``settings.FIREBASE_CREDENTIALS_PATH``.
+first use. Credentials are resolved in this order:
+  1. ``settings.FIREBASE_CREDENTIALS_JSON`` — raw JSON string (Render / prod).
+  2. ``settings.FIREBASE_CREDENTIALS_PATH`` — path to a JSON file (local dev).
+  3. ``GOOGLE_APPLICATION_CREDENTIALS`` env var (GCP / generic fallback).
 """
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from typing import Optional, Tuple
@@ -43,14 +47,21 @@ def _ensure_firebase_initialised() -> None:
             import firebase_admin
             from firebase_admin import credentials
 
+            json_blob = getattr(settings, "FIREBASE_CREDENTIALS_JSON", "")
             cred_path = getattr(settings, "FIREBASE_CREDENTIALS_PATH", "")
-            if cred_path:
+
+            if json_blob:
+                # Render / production: full JSON contents inlined as an env var.
+                cred = credentials.Certificate(json.loads(json_blob))
+            elif cred_path:
+                # Local dev: path to a gitignored file on disk.
                 cred = credentials.Certificate(cred_path)
-                firebase_admin.initialize_app(cred)
             else:
-                # Fallback for local dev without a service account: rely on
-                # GOOGLE_APPLICATION_CREDENTIALS env var.
+                # Generic GCP fallback: GOOGLE_APPLICATION_CREDENTIALS env var.
                 firebase_admin.initialize_app()
+                _firebase_initialised = True
+                return
+            firebase_admin.initialize_app(cred)
             _firebase_initialised = True
         except Exception as exc:  # pragma: no cover - dev convenience
             logger.warning("Firebase admin initialisation failed: %s", exc)
